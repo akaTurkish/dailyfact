@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private final TelegramBotConfig config;
     private final FactService factService;
+
 
     public TelegramBot(TelegramBotConfig config, FactService factService) {
         super(config.getToken());
@@ -38,14 +40,33 @@ public class TelegramBot extends TelegramLongPollingBot {
             String text = update.getMessage().getText();
             String chatId = update.getMessage().getChatId().toString();
 
-            if (text.equals("/start")) {
-                send(chatId, "Привіт! 👋 Це бот 'Фактодня'. Надішли /fact, щоб дізнатися щось нове!");
-            } else if (text.equals("/fact")) {
-                Fact todayFact = factService.getDailyFact();
-                String msg = "📘 *Факт дня:*\n\n" + todayFact.getFact() + "\n\n_" + todayFact.getDescription() + "_";
-                send(chatId, msg);
-            } else {
-                send(chatId, "Спробуй команду /fact 😉");
+            switch (text) {
+                case "/start" -> {
+                    String name = update.getMessage().getFrom().getUserName();
+                    String msg = "Привіт, " + name + "! \nЦе бот з цікавим фактом на кожен день.\n\nДоступні команди:\n/daily_fact - отримати факт дня\n/random - отримати випадковий факт";
+                    SendMessage message = new SendMessage();
+                    message.setChatId(chatId);
+                    message.setText(msg);
+                    message.enableMarkdown(false); // Вимкнути Markdown
+                    try {
+                        execute(message);
+                    } catch (TelegramApiException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                case "/daily_fact" -> {
+                    Fact todayFact = factService.getDailyFact();
+                    String msg = "📘 *Факт дня:*\n\n" + todayFact.getFact() + "\n\n_" + todayFact.getDescription() + "_\n\n_" + todayFact.getSource() + "_";
+                    send(chatId, msg);
+                }
+                case "/random" -> {
+                    Fact randomFact = factService.getRandomFact();
+                    String msg = "📘 *Випадковий факт:*\n\n" + randomFact.getFact() + "\n\n_" + randomFact.getDescription() + "_\n\n_" + randomFact.getSource() + "_";
+                    send(chatId, msg);
+                }
+                default -> send(chatId, "Список команд:\n " +
+                        "/daily_fact \n" +
+                        "/random");
             }
         }
     }

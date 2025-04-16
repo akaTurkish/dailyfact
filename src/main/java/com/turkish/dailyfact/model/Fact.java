@@ -31,6 +31,9 @@ public class Fact {
     @Column(name = "PUBLISH")
     private LocalDate publishDate;
 
+    @Column(name = "SOURCE")
+    private String source;
+
     public Fact(String fact, String description) {
         this.fact = fact;
         this.description = description;
